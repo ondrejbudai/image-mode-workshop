@@ -1,0 +1,38 @@
+name: Build Image
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/**"
+  workflow_dispatch:
+  schedule:
+    - cron: '35 6 * * *'
+  push:
+    branches:
+      - main
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Build
+        run: |
+          podman build -t ghcr.io/${{ github.repository }}:$(date --iso-8601=date) .
+          podman build -t ghcr.io/${{ github.repository }}:latest .
+
+      - name: Push
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u $ --password-stdin
+          podman push ghcr.io/${{ github.repository }}:$(date --iso-8601=date)
+          podman push ghcr.io/${{ github.repository }}:latest
